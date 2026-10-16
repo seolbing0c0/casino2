@@ -226,17 +226,23 @@
 
     /* --- 신규 게임 전용 UI 스타일 --- */
     .number-badge {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
       background: #38bdf8;
       color: #0f172a;
       display: flex;
       justify-content: center;
       align-items: center;
-      font-size: 1.5rem;
+      font-size: 1.4rem;
       font-weight: 800;
       box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+
+    .number-badge.dice {
+      background: #f8fafc;
+      color: #0f172a;
+      border: 2px solid #cbd5e1;
     }
 
     .number-badge.negative {
@@ -280,6 +286,32 @@
     }
 
     .copy-btn:active { background: #475569; }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-box {
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 12px;
+      max-width: 320px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      border: 1px solid #334155;
+    }
+    .modal-msg {
+      margin-bottom: 16px;
+      font-size: 0.95rem;
+      color: #f8fafc;
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
@@ -289,7 +321,7 @@
       <button class="tab-btn active" onclick="switchTab(0)">블랙잭</button>
       <button class="tab-btn" onclick="switchTab(1)">사다리타기</button>
       <button class="tab-btn" onclick="switchTab(2)">가위바위보</button>
-      <button class="tab-btn" onclick="switchTab(3)">하이로우</button>
+      <button class="tab-btn" onclick="switchTab(3)">다이사이</button>
       <button class="tab-btn" onclick="switchTab(4)">자연수 룰렛</button>
     </nav>
   </header>
@@ -361,52 +393,62 @@
       </div>
     </section>
 
-    <!-- 4. 하이로우 (직접 선택 및 비교 방식으로 수정됨) -->
+    <!-- 4. 다이사이 (Sic Bo) -->
     <section class="game-card">
       <div class="game-header">
-        <span class="game-title">하이로우</span>
-        <span class="game-desc">내 숫자가 컴퓨터보다 높으면 x3 / 낮으면 x-3</span>
+        <span class="game-title">다이사이 (Sic Bo)</span>
+        <span class="game-desc">홀/짝 예측 (x2) 또는 합계 숫자 예측 (4~17, x6)</span>
       </div>
-      <div class="display-area" id="highlow-display">
-        <div style="display:flex; gap:20px; align-items:center;">
-          <div style="text-align:center;">
-            <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:4px;">컴퓨터 카드</div>
-            <div class="number-badge" id="hl-com-num">?</div>
+      <div class="display-area" id="sicbo-display">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <div style="display: flex; gap: 12px; font-size: 2.2rem;" id="sicbo-dice-container">
+            <span>🎲</span><span>🎲</span><span>🎲</span>
           </div>
-          <div style="font-size:1.2rem;">VS</div>
-          <div style="text-align:center;">
-            <div style="font-size:0.8rem; color:#94a3b8; margin-bottom:4px;">내 카드</div>
-            <div class="number-badge" style="background:#f59e0b;" id="hl-user-num">?</div>
-          </div>
+          <div style="font-size: 0.95rem; color: #94a3b8;" id="sicbo-summary">주사위를 굴려주세요</div>
         </div>
       </div>
       <div class="controls">
+        <!-- 예측 방식 선택 라디오/버튼 -->
         <div class="flex-row">
-          <select id="hl-user-select">
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-            <option value="6">6</option>
-            <option value="7" selected>7</option>
-            <option value="8">8</option>
-            <option value="9">9</option>
-            <option value="10">10</option>
-            <option value="11">11</option>
-            <option value="12">12</option>
-            <option value="13">13</option>
+          <button class="secondary sicbo-mode-btn selected" id="sicbo-mode-oddeven-btn" onclick="setSicboMode('oddeven')">홀 / 짝 (x2)</button>
+          <button class="secondary sicbo-mode-btn" id="sicbo-mode-sum-btn" onclick="setSicboMode('sum')">합계 선택 (x6)</button>
+        </div>
+
+        <!-- 홀/짝 선택 영역 -->
+        <div class="flex-row" id="sicbo-oddeven-controls">
+          <button class="secondary sicbo-oe-btn selected" onclick="selectSicboOddEven('홀')">🔴 홀</button>
+          <button class="secondary sicbo-oe-btn" onclick="selectSicboOddEven('짝')">🔵 짝</button>
+        </div>
+
+        <!-- 합계 선택 영역 (초기 숨김) -->
+        <div class="flex-row" id="sicbo-sum-controls" style="display: none;">
+          <select id="sicbo-sum-select">
+            <option value="4">합계 4</option>
+            <option value="5">합계 5</option>
+            <option value="6">합계 6</option>
+            <option value="7">합계 7</option>
+            <option value="8">합계 8</option>
+            <option value="9">합계 9</option>
+            <option value="10" selected>합계 10</option>
+            <option value="11">합계 11</option>
+            <option value="12">합계 12</option>
+            <option value="13">합계 13</option>
+            <option value="14">합계 14</option>
+            <option value="15">합계 15</option>
+            <option value="16">합계 16</option>
+            <option value="17">합계 17</option>
           </select>
         </div>
-        <button onclick="playHighLow()">대결 시작</button>
+
+        <button class="confirm" onclick="playSicbo()">주사위 굴리기</button>
       </div>
       <div class="result-container">
-        <div class="result-text" id="highlow-result">숫자(1~13)를 고르고 대결을 시작하세요.</div>
-        <button class="copy-btn" onclick="copyResult('highlow-result')">문구 복사</button>
+        <div class="result-text" id="sicbo-result">예측 방식을 선택한 뒤 주사위를 굴려주세요.</div>
+        <button class="copy-btn" onclick="copyResult('sicbo-result')">문구 복사</button>
       </div>
     </section>
 
-    <!-- 5. 자연수 룰렛 (단순 추출용으로 수정됨) -->
+    <!-- 5. 자연수 룰렛 -->
     <section class="game-card">
       <div class="game-header">
         <span class="game-title">자연수 룰렛</span>
@@ -426,7 +468,25 @@
 
   </main>
 
+  <!-- 커스텀 메세지 모달 -->
+  <div class="modal-overlay" id="custom-modal">
+    <div class="modal-box">
+      <div class="modal-msg" id="modal-msg-text">알림 메세지</div>
+      <button onclick="closeModal()">확인</button>
+    </div>
+  </div>
+
   <script>
+    // MODAL LOGIC
+    function showModal(msg) {
+      document.getElementById('modal-msg-text').innerText = msg;
+      document.getElementById('custom-modal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('custom-modal').style.display = 'none';
+    }
+
     // TAB SWITCHING LOGIC
     function switchTab(index) {
       const tabs = document.querySelectorAll('.tab-btn');
@@ -447,11 +507,18 @@
     function copyResult(elementId) {
       const text = document.getElementById(elementId).innerText;
       if (!text) return;
-      navigator.clipboard.writeText(text).then(() => {
-        alert('결과 문구가 복사되었습니다.');
-      }).catch(err => {
-        console.error('복사 실패:', err);
-      });
+      
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showModal('결과 문구가 복사되었습니다.');
+      } catch (err) {
+        showModal('복사에 실패했습니다.');
+      }
+      document.body.removeChild(textarea);
     }
 
     // 1. 블랙잭
@@ -552,7 +619,7 @@
     function replaceBlackjackCard() {
       if (currentBlackjackCards.length === 0) return;
       if (selectedCardIndex === -1) {
-        alert('교체할 카드를 위에서 먼저 선택해 주세요!');
+        showModal('교체할 카드를 위에서 먼저 선택해 주세요!');
         return;
       }
       currentBlackjackCards[selectedCardIndex] = getRandomCard();
@@ -573,7 +640,7 @@
 
     function playLadder() {
       if (!selectedLadderLine) {
-        alert('라인을 먼저 선택해주세요!');
+        showModal('라인을 먼저 선택해주세요!');
         return;
       }
 
@@ -603,7 +670,7 @@
 
     function playRsp() {
       if (!selectedRsp) {
-        alert('가위, 바위, 보 중 하나를 선택해주세요!');
+        showModal('가위, 바위, 보 중 하나를 선택해주세요!');
         return;
       }
 
@@ -627,7 +694,7 @@
       }
 
       let finalResult = "";
-      if (isDraw) finalResult = "무승부 x1)";
+      if (isDraw) finalResult = "무승부 x1";
       else if (isWin) finalResult = "승리 x2";
       else finalResult = "패배 x-2";
 
@@ -638,53 +705,98 @@
       document.getElementById('rsp-result').innerText = resultMsg;
     }
 
-    // 4. 하이로우 (플레이어 선택 숫자 vs 컴퓨터 비교)
-    function playHighLow() {
-      const userNum = parseInt(document.getElementById('hl-user-select').value);
-      const comNum = Math.floor(Math.random() * 13) + 1; // 1~13 무작위
+    // 4. 다이사이 (Sic Bo) - 홀/짝 및 합계 선택
+    let currentSicboMode = 'oddeven'; // 'oddeven' 또는 'sum'
+    let selectedSicboOddEven = '홀';
 
-      document.getElementById('hl-com-num').innerText = comNum;
-      document.getElementById('hl-user-num').innerText = userNum;
+    function setSicboMode(mode) {
+      currentSicboMode = mode;
+      const oeBtn = document.getElementById('sicbo-mode-oddeven-btn');
+      const sumBtn = document.getElementById('sicbo-mode-sum-btn');
+      const oeControls = document.getElementById('sicbo-oddeven-controls');
+      const sumControls = document.getElementById('sicbo-sum-controls');
 
-      let finalResult = "";
-      if (userNum > comNum) {
-        finalResult = "승리 - x3";
-      } else if (userNum < comNum) {
-        finalResult = "패배 - x-3";
+      if (mode === 'oddeven') {
+        oeBtn.classList.add('selected');
+        sumBtn.classList.remove('selected');
+        oeControls.style.display = 'flex';
+        sumControls.style.display = 'none';
       } else {
-        finalResult = "무승부 - x1";
+        sumBtn.classList.add('selected');
+        oeBtn.classList.remove('selected');
+        oeControls.style.display = 'none';
+        sumControls.style.display = 'flex';
       }
-
-      const outcomeText = `나의 숫자: ${userNum} vs 상대의 숫자: ${comNum}`;
-      const resultMsg = ` ${outcomeText}\n결과: ${finalResult}`;
-
-      document.getElementById('highlow-result').innerText = resultMsg;
     }
 
-    // 5. 자연수 룰렛 (단순 무작위 숫자 추출)
-   function playRoulette() {
-  // -10부터 10 사이 무작위 정수 (-10, -9, ..., 0, ..., 9, 10)
-  const rolledNum = Math.floor(Math.random() * 21) - 10;
+    function selectSicboOddEven(choice) {
+      selectedSicboOddEven = choice;
+      document.querySelectorAll('.sicbo-oe-btn').forEach(btn => {
+        if (btn.innerText.includes(choice)) {
+          btn.classList.add('selected');
+        } else {
+          btn.classList.remove('selected');
+        }
+      });
+    }
 
-  const numEl = document.getElementById('roulette-num');
-  numEl.innerText = rolledNum;
-  numEl.className = 'number-badge';
-  
-  // 배지 색상 스타일 적용 (선택 사항)
-  if (rolledNum === 0) {
-    numEl.classList.add('zero');
-  } else if (rolledNum < 0) {
-    numEl.classList.add('negative');
-  } else {
-    numEl.classList.add('positive'); // 양수용 스타일 (필요 시 CSS 적용)
-  }
+    function playSicbo() {
+      // 주사위 3개 무작위 추출 (1~6)
+      const d1 = Math.floor(Math.random() * 6) + 1;
+      const d2 = Math.floor(Math.random() * 6) + 1;
+      const d3 = Math.floor(Math.random() * 6) + 1;
 
-  const outcomeText = ` ${rolledNum}`;
-  const resultMsg = `결과: ${outcomeText}`;
+      const diceUnicode = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+      const sum = d1 + d2 + d3;
+      const actualOddEven = (sum % 2 !== 0) ? '홀' : '짝';
 
-  document.getElementById('roulette-result').innerText = resultMsg;
-}
-    
+      // UI 업데이트
+      const diceContainer = document.getElementById('sicbo-dice-container');
+      diceContainer.innerHTML = `<span>${diceUnicode[d1]}</span><span>${diceUnicode[d2]}</span><span>${diceUnicode[d3]}</span>`;
+      document.getElementById('sicbo-summary').innerText = `합계: ${sum} (${actualOddEven})`;
+
+      let isWin = false;
+      let predictText = "";
+      let multiplierText = "";
+
+      if (currentSicboMode === 'oddeven') {
+        predictText = `[홀/짝] ${selectedSicboOddEven}`;
+        isWin = (selectedSicboOddEven === actualOddEven);
+        multiplierText = isWin ? "승리 x3" : "패배 x-2";
+      } else {
+        const targetSum = parseInt(document.getElementById('sicbo-sum-select').value);
+        predictText = `[합계] ${targetSum}`;
+        isWin = (targetSum === sum);
+        multiplierText = isWin ? "승리 x3" : "패배 x-2";
+      }
+
+      const outcomeText = `눈: [${d1}, ${d2}, ${d3}] | 합계: ${sum} (${actualOddEven})`;
+      const finalMsg = `예측: ${predictText}\n주사위: ${outcomeText}\n결과: ${multiplierText}`;
+
+      document.getElementById('sicbo-result').innerText = finalMsg;
+    }
+
+    // 5. 자연수 룰렛
+    function playRoulette() {
+      const rolledNum = Math.floor(Math.random() * 21) - 10;
+
+      const numEl = document.getElementById('roulette-num');
+      numEl.innerText = rolledNum;
+      numEl.className = 'number-badge';
+      
+      if (rolledNum === 0) {
+        numEl.classList.add('zero');
+      } else if (rolledNum < 0) {
+        numEl.classList.add('negative');
+      } else {
+        numEl.classList.add('positive');
+      }
+
+      const outcomeText = `${rolledNum}`;
+      const resultMsg = `결과: ${outcomeText}`;
+
+      document.getElementById('roulette-result').innerText = resultMsg;
+    }
   </script>
 </body>
 </html>
